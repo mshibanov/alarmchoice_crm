@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# PyCharm
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python
+*.log
+*.pot
+*.pyc
+__pycache__/
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
