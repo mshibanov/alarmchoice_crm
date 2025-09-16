@@ -139,8 +139,12 @@ async def show_recommendations(update: Update, context: ContextTypes.DEFAULT_TYP
                 if alarm['gsm']: features.append("приложение")
                 if alarm['gps']: features.append("GPS")
 
+                # Добавляем звездочку для StarLine и жирный текст
+                brand_emoji = "⭐️" if alarm['brand'] == 'StarLine' else "🐼"
+                alarm_name = f"*{alarm['name']}*" if alarm['brand'] == 'StarLine' else alarm['name']
+
                 message += (
-                    f"🐼 {alarm['name']}\n"
+                    f"{brand_emoji} {alarm_name}\n"
                     f"• Характеристики: {', '.join(features)}\n"
                     f"• Стоимость: {alarm['price']}\n"
                     f"• Ссылка: {alarm['link']}\n\n"
@@ -148,7 +152,7 @@ async def show_recommendations(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             message += "К сожалению, подходящих систем не найдено 😢\n"
 
-        await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove(), parse_mode='Markdown')
 
         # Сохраняем рекомендованные сигнализации
         context.user_data['recommended_alarms'] = alarms
@@ -158,11 +162,14 @@ async def show_recommendations(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
         await update.message.reply_text(
-            "Хочешь узнать стоимость установки на твой авто?💰\n\n"
+            "*Хочешь узнать стоимость установки на твой авто?*💰\n\n"
             "Оставь номер телефона и наш мастер свяжется с тобой и ответит на все вопросы📞\n\n"
-            "Мы официальные представители Pandora и StarLine в Самаре 👨🏻‍🔧\n\n"
-            "Нажми кнопку ниже, чтобы поделиться номером телефона 👇",
-            reply_markup=reply_markup
+            "✅ Даем гарантию 1 год на все работы\n"
+            "✅ Сохраним гарантию на новый авто\n"
+            "✅ Мы официальные представители Pandora и StarLine в Самаре 👨🏻‍🔧\n\n"
+            "Нажимая на кнопку, Вы соглашаетесь с политикой обработки персональных данных (https://ya7auto.ru/company/privacy-policy/), пользовательским соглашением.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
         )
     except Exception as e:
         logger.error(f"Error in show_recommendations: {e}")
@@ -193,7 +200,8 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await update.message.reply_text(
                 "✅ Спасибо! Ваша заявка принята!\n"
                 "Наш мастер свяжется с вами в ближайшее время для консультации 📞\n\n"
-                "Хочешь подобрать другую сигнализацию?",
+                "Подписывайтесь на наш канал t.me/ya7tg\n\n"
+                "Хочешь подобрать другую сигнализацию? Напиши /start",
                 reply_markup=reply_markup
             )
         else:
@@ -201,7 +209,7 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 "✅ Спасибо за ваши ответы!\n"
                 "К сожалению, сейчас не можем обработать заявку. "
                 "Пожалуйста, позвоните нам напрямую 📞\n\n"
-                "Хочешь подобрать другую сигнализацию?",
+                "Хочешь подобрать другую сигнализацию? Напиши /start",
                 reply_markup=reply_markup
             )
 
