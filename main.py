@@ -192,17 +192,13 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             context.user_data.get('recommended_alarms', [])
         )
 
-        # Клавиатура для повторного опроса
-        keyboard = [['🔄 Пройти опрос еще раз']]
-        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-
         if success:
             await update.message.reply_text(
                 "✅ Спасибо! Ваша заявка принята!\n"
                 "Наш мастер свяжется с вами в ближайшее время для консультации 📞\n\n"
                 "Подписывайтесь на наш канал t.me/ya7tg\n\n"
                 "Хочешь подобрать другую сигнализацию? Напиши /start",
-                reply_markup=reply_markup
+                reply_markup=ReplyKeyboardRemove()
             )
         else:
             await update.message.reply_text(
@@ -210,7 +206,7 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 "К сожалению, сейчас не можем обработать заявку. "
                 "Пожалуйста, позвоните нам напрямую 📞\n\n"
                 "Хочешь подобрать другую сигнализацию? Напиши /start",
-                reply_markup=reply_markup
+                reply_markup=ReplyKeyboardRemove()
             )
 
         return ConversationHandler.END
@@ -218,16 +214,6 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logger.error(f"Error in handle_phone: {e}")
         await update.message.reply_text("Произошла ошибка при обработке номера телефона. Давайте начнем заново /start")
         return ConversationHandler.END
-
-
-async def handle_restart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик для повторного прохождения опроса"""
-    try:
-        if update.message.text == '🔄 Пройти опрос еще раз':
-            await start(update, context)
-    except Exception as e:
-        logger.error(f"Error in handle_restart: {e}")
-        await update.message.reply_text("Произошла ошибка. Попробуйте еще раз /start")
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -262,7 +248,6 @@ def setup_application():
 
     # Добавляем обработчики
     application.add_handler(conv_handler)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_restart))
     application.add_handler(CommandHandler('health', health_check))
     application.add_error_handler(error_handler)
 
