@@ -1,3 +1,4 @@
+# alarms_data.py
 ALARMS = [
     {
         "name": "Pandora DX-40R",
@@ -114,7 +115,7 @@ ALARMS = [
 
 def find_matching_alarms(autostart, gsm, gps):
     """
-    Поиск подходящих сигнализаций по критериям
+    Поиск подходящих сигнализаций по критериям с системой баллов
 
     Args:
         autostart (bool): Нужен ли автозапуск
@@ -122,17 +123,56 @@ def find_matching_alarms(autostart, gsm, gps):
         gps (bool): Нужен ли GPS
 
     Returns:
-        list: Список подходящих сигнализаций
+        list: Отсортированный список подходящих сигнализаций с баллами соответствия
     """
-    matching = []
+    scored_alarms = []
 
     for alarm in ALARMS:
-        if (alarm['autostart'] == autostart and
-                alarm['gsm'] == gsm and
-                alarm['gps'] == gps):
-            matching.append(alarm)
+        score = 0
 
-    return matching
+        # Основные критерии (больший вес)
+        if alarm['autostart'] == autostart:
+            score += 3
+        if alarm['gsm'] == gsm:
+            score += 3
+        if alarm['gps'] == gps:
+            score += 3
+
+        # Дополнительные критерии (меньший вес)
+        if alarm['autostart'] and autostart:  # Если нужен автозапуск и он есть
+            score += 1
+        if alarm['gsm'] and gsm:  # Если нужно приложение и оно есть
+            score += 1
+        if alarm['gps'] and gps:  # Если нужен GPS и он есть
+            score += 1
+
+        # Штраф за отсутствие нужных функций
+        if not alarm['autostart'] and autostart:
+            score -= 2
+        if not alarm['gsm'] and gsm:
+            score -= 2
+        if not alarm['gps'] and gps:
+            score -= 2
+
+        # Добавляем систему в список с баллом
+        scored_alarms.append({
+            'alarm': alarm,
+            'score': score,
+            'perfect_match': (alarm['autostart'] == autostart and
+                              alarm['gsm'] == gsm and
+                              alarm['gps'] == gps)
+        })
+
+    # Фильтруем системы с положительным баллом или идеальные совпадения
+    filtered_alarms = [item for item in scored_alarms if item['score'] > 0 or item['perfect_match']]
+
+    # Сортируем по баллам (по убыванию)
+    filtered_alarms.sort(key=lambda x: x['score'], reverse=True)
+
+    # Берем топ-3 рекомендации
+    top_alarms = [item['alarm'] for item in filtered_alarms[:3]]
+
+    return top_alarms
 
 
 def get_all_alarms():
@@ -161,24 +201,14 @@ if __name__ == "__main__":
     # Тестирование поиска
     print("=== Тест поиска сигнализаций ===")
 
-    # Пример 1: Без автозапуска, брелок, без GPS
+    # Пример: С автозапуском, брелок, с GPS (идеальное совпадение - Pandora VX 3100)
+    result = find_matching_alarms(True, False, True)
+    print(f"\nС автозапуском, брелок, с GPS: {len(result)} шт.")
+    for alarm in result:
+        print(f"  - {alarm['name']} (автозапуск: {alarm['autostart']}, GSM: {alarm['gsm']}, GPS: {alarm['gps']})")
+
+    # Пример 2: Без автозапуска, брелок, без GPS
     result = find_matching_alarms(False, False, False)
     print(f"\nБез автозапуска, брелок, без GPS: {len(result)} шт.")
     for alarm in result:
-        print(f"  - {alarm['name']} ({alarm['price']})")
-
-    # Пример 2: С автозапуском, приложение, с GPS
-    result = find_matching_alarms(True, True, True)
-    print(f"\nС автозапуском, приложение, с GPS: {len(result)} шт.")
-    for alarm in result:
-        print(f"  - {alarm['name']} ({alarm['price']})")
-
-    # Все сигнализации Pandora
-    pandora_alarms = get_alarms_by_brand('Pandora')
-    print(f"\nВсего Pandora: {len(pandora_alarms)} шт.")
-
-    # Сигнализации в диапазоне цен 15-20 тыс.
-    price_range_alarms = get_alarms_by_price_range(15000, 20000)
-    print(f"\nВ диапазоне 15-20 тыс.: {len(price_range_alarms)} шт.")
-    for alarm in price_range_alarms:
         print(f"  - {alarm['name']} ({alarm['price']})")

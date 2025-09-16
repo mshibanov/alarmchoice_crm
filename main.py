@@ -1,8 +1,9 @@
 import logging
 import asyncio
+import time
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes
-from config import BOT_TOKEN
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, PORT
 from alarms_data import find_matching_alarms
 from crm_integration import create_crm_deal
 
@@ -44,11 +45,16 @@ async def ask_autostart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def handle_autostart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    choice = update.message.text
-    context.user_data['autostart'] = 'С Автозапуском' in choice
+    try:
+        choice = update.message.text
+        context.user_data['autostart'] = 'С Автозапуском' in choice
 
-    await ask_gsm(update, context)
-    return GSM
+        await ask_gsm(update, context)
+        return GSM
+    except Exception as e:
+        logger.error(f"Error in handle_autostart: {e}")
+        await update.message.reply_text("Произошла ошибка. Давайте начнем заново /start")
+        return ConversationHandler.END
 
 
 async def ask_gsm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -67,11 +73,16 @@ async def ask_gsm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_gsm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    choice = update.message.text
-    context.user_data['gsm'] = 'Приложение' in choice
+    try:
+        choice = update.message.text
+        context.user_data['gsm'] = 'Приложение' in choice
 
-    await ask_gps(update, context)
-    return GPS
+        await ask_gps(update, context)
+        return GPS
+    except Exception as e:
+        logger.error(f"Error in handle_gsm: {e}")
+        await update.message.reply_text("Произошла ошибка. Давайте начнем заново /start")
+        return ConversationHandler.END
 
 
 async def ask_gps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -88,109 +99,127 @@ async def ask_gps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_gps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    choice = update.message.text
-    context.user_data['gps'] = 'С GPS-антенной' in choice
+    try:
+        choice = update.message.text
+        context.user_data['gps'] = 'С GPS-антенной' in choice
 
-    # Поиск подходящих сигнализаций
-    alarms = find_matching_alarms(
-        context.user_data['autostart'],
-        context.user_data['gsm'],
-        context.user_data['gps']
-    )
+        # Поиск подходящих сигнализаций
+        alarms = find_matching_alarms(
+            context.user_data['autostart'],
+            context.user_data['gsm'],
+            context.user_data['gps']
+        )
 
-    await show_recommendations(update, context, alarms)
-    return PHONE
+        await show_recommendations(update, context, alarms)
+        return PHONE
+    except Exception as e:
+        logger.error(f"Error in handle_gps: {e}")
+        await update.message.reply_text("Произошла ошибка. Давайте начнем заново /start")
+        return ConversationHandler.END
 
 
 async def show_recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE, alarms: list) -> None:
-    user_data = context.user_data
+    try:
+        user_data = context.user_data
 
-    message = (
-        f"🔍 Для вас важно, чтобы сигнализация имела следующий функционал:\n\n"
-        f"• {'✅' if user_data['autostart'] else '❌'} {'С' if user_data['autostart'] else 'БЕЗ'} автозапуска\n"
-        f"• {'📱' if user_data['gsm'] else '📟'} Управление через {'приложение' if user_data['gsm'] else 'брелок'}\n"
-        f"• {'✅' if user_data['gps'] else '❌'} {'С' if user_data['gps'] else 'БЕЗ'} GPS-отслеживания\n\n"
-    )
+        message = (
+            f"🔍 Для вас важно, чтобы сигнализация имела следующий функционал:\n\n"
+            f"• {'✅' if user_data['autostart'] else '❌'} {'С' if user_data['autostart'] else 'БЕЗ'} автозапуска\n"
+            f"• {'📱' if user_data['gsm'] else '📟'} Управление через {'приложение' if user_data['gsm'] else 'брелок'}\n"
+            f"• {'✅' if user_data['gps'] else '❌'} {'С' if user_data['gps'] else 'БЕЗ'} GPS-отслеживания\n\n"
+        )
 
-    if alarms:
-        message += f"Нашлось {len(alarms)} подходящих систем:\n\n"
+        if alarms:
+            message += f"Нашлось {len(alarms)} подходящих систем:\n\n"
 
-        for alarm in alarms:
-            features = []
-            if alarm['autostart']: features.append("автозапуск")
-            if alarm['remote']: features.append("брелок")
-            if alarm['gsm']: features.append("приложение")
-            if alarm['gps']: features.append("GPS")
+            for alarm in alarms:
+                features = []
+                if alarm['autostart']: features.append("автозапуск")
+                if alarm['remote']: features.append("брелок")
+                if alarm['gsm']: features.append("приложение")
+                if alarm['gps']: features.append("GPS")
 
-            message += (
-                f"🐼 {alarm['name']}\n"
-                f"• Характеристики: {', '.join(features)}\n"
-                f"• Стоимость: {alarm['price']}\n"
-                f"• Ссылка: {alarm['link']}\n\n"
-            )
-    else:
-        message += "К сожалению, подходящих систем не найдено 😢\n"
+                message += (
+                    f"🐼 {alarm['name']}\n"
+                    f"• Характеристики: {', '.join(features)}\n"
+                    f"• Стоимость: {alarm['price']}\n"
+                    f"• Ссылка: {alarm['link']}\n\n"
+                )
+        else:
+            message += "К сожалению, подходящих систем не найдено 😢\n"
 
-    await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
 
-    # Сохраняем рекомендованные сигнализации
-    context.user_data['recommended_alarms'] = alarms
+        # Сохраняем рекомендованные сигнализации
+        context.user_data['recommended_alarms'] = alarms
 
-    # Запрос телефона с кнопкой
-    keyboard = [[KeyboardButton("📞 Отправить номер телефона", request_contact=True)]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        # Запрос телефона с кнопкой
+        keyboard = [[KeyboardButton("📞 Отправить номер телефона", request_contact=True)]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
-    await update.message.reply_text(
-        "Хочешь узнать стоимость установки на твой авто?💰\n\n"
-        "Оставь номер телефона и наш мастер свяжется с тобой и ответит на все вопросы📞\n\n"
-        "Мы официальные представители Pandora и StarLine в Самаре 👨🏻‍🔧\n\n"
-        "Нажми кнопку ниже, чтобы поделиться номером телефона 👇",
-        reply_markup=reply_markup
-    )
+        await update.message.reply_text(
+            "Хочешь узнать стоимость установки на твой авто?💰\n\n"
+            "Оставь номер телефона и наш мастер свяжется с тобой и ответит на все вопросы📞\n\n"
+            "Мы официальные представители Pandora и StarLine в Самаре 👨🏻‍🔧\n\n"
+            "Нажми кнопку ниже, чтобы поделиться номером телефона 👇",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        logger.error(f"Error in show_recommendations: {e}")
+        await update.message.reply_text("Произошла ошибка при показе рекомендаций. Давайте начнем заново /start")
 
 
 async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.contact:
-        phone = update.message.contact.phone_number
-    else:
-        phone = update.message.text
+    try:
+        if update.message.contact:
+            phone = update.message.contact.phone_number
+        else:
+            phone = update.message.text
 
-    context.user_data['phone'] = phone
-    context.user_data['username'] = update.message.from_user.first_name
+        context.user_data['phone'] = phone
+        context.user_data['username'] = update.message.from_user.first_name
 
-    # Создаем сделку в CRM (функция create_crm_deal теперь сама создает контакт)
-    success = create_crm_deal(
-        context.user_data,
-        context.user_data.get('recommended_alarms', [])
-    )
-
-    # Клавиатура для повторного опроса
-    keyboard = [['🔄 Пройти опрос еще раз']]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-
-    if success:
-        await update.message.reply_text(
-            "✅ Спасибо! Ваша заявка принята!\n"
-            "Наш мастер свяжется с вами в ближайшее время для консультации 📞\n\n"
-            "Хочешь подобрать другую сигнализацию?",
-            reply_markup=reply_markup
-        )
-    else:
-        await update.message.reply_text(
-            "✅ Спасибо за ваши ответы!\n"
-            "К сожалению, сейчас не можем обработать заявку. "
-            "Пожалуйста, позвоните нам напрямую 📞\n\n"
-            "Хочешь подобрать другую сигнализацию?",
-            reply_markup=reply_markup
+        # Создаем сделку в CRM
+        success = create_crm_deal(
+            context.user_data,
+            context.user_data.get('recommended_alarms', [])
         )
 
-    return ConversationHandler.END
+        # Клавиатура для повторного опроса
+        keyboard = [['🔄 Пройти опрос еще раз']]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+
+        if success:
+            await update.message.reply_text(
+                "✅ Спасибо! Ваша заявка принята!\n"
+                "Наш мастер свяжется с вами в ближайшее время для консультации 📞\n\n"
+                "Хочешь подобрать другую сигнализацию?",
+                reply_markup=reply_markup
+            )
+        else:
+            await update.message.reply_text(
+                "✅ Спасибо за ваши ответы!\n"
+                "К сожалению, сейчас не можем обработать заявку. "
+                "Пожалуйста, позвоните нам напрямую 📞\n\n"
+                "Хочешь подобрать другую сигнализацию?",
+                reply_markup=reply_markup
+            )
+
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Error in handle_phone: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке номера телефона. Давайте начнем заново /start")
+        return ConversationHandler.END
 
 
 async def handle_restart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик для повторного прохождения опроса"""
-    if update.message.text == '🔄 Пройти опрос еще раз':
-        await start(update, context)
+    try:
+        if update.message.text == '🔄 Пройти опрос еще раз':
+            await start(update, context)
+    except Exception as e:
+        logger.error(f"Error in handle_restart: {e}")
+        await update.message.reply_text("Произошла ошибка. Попробуйте еще раз /start")
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -202,8 +231,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     logger.error("Exception while handling an update:", exc_info=context.error)
 
 
-def main() -> None:
-    # Создаем Application
+def setup_application():
+    """Настройка и создание приложения"""
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Создаем обработчик диалога
@@ -223,10 +252,31 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_restart))
     application.add_error_handler(error_handler)
 
-    # Запускаем бота
-    print("Бот запущен...")
-    application.run_polling()
+    return application
+
+
+async def set_webhook(application):
+    """Установка вебхука"""
+    webhook_url = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
+    await application.bot.set_webhook(webhook_url)
+    logger.info(f"Webhook установлен: {webhook_url}")
+
+
+async def main():
+    """Основная функция с вебхуком"""
+    application = setup_application()
+
+    # Устанавливаем вебхук
+    await set_webhook(application)
+
+    # Запускаем приложение
+    logger.info("Бот запущен в режиме вебхука")
+    await application.start()
+
+    # Ждем завершения
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':
-    main()
+    # Для запуска на Amvera с вебхуками
+    asyncio.run(main())
