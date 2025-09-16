@@ -9,7 +9,8 @@ BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
 
 # Webhook Configuration
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'https://your-app-name.amvera.io')
-WEBHOOK_PORT = int(os.getenv('PORT', '8443'))  # Amvera использует PORT
+WEBHOOK_PORT = int(os.getenv('PORT', '8443'))
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"  # Добавляем WEBHOOK_PATH
 
 # CRM Configuration
 CRM_API_URL = "https://ya7auto.ru/api.php/crm.deal.add"

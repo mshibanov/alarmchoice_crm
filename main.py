@@ -3,7 +3,7 @@ import logging
 import os
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes
-from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PORT
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PORT, WEBHOOK_PATH
 from alarms_data import find_matching_alarms
 from crm_integration import create_crm_deal
 
@@ -274,7 +274,7 @@ def main():
         application.run_webhook(
             listen="0.0.0.0",
             port=WEBHOOK_PORT,
-            webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+            webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
             secret_token='WEBHOOK_SECRET_TOKEN'
         )
     else:
