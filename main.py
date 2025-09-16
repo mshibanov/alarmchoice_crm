@@ -1,9 +1,9 @@
+# main.py
 import logging
-import asyncio
-import time
+import os
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes
-from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, PORT
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PORT
 from alarms_data import find_matching_alarms
 from crm_integration import create_crm_deal
 
@@ -231,6 +231,11 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     logger.error("Exception while handling an update:", exc_info=context.error)
 
 
+async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Проверка здоровья бота"""
+    await update.message.reply_text("Бот работает нормально! ✅")
+
+
 def setup_application():
     """Настройка и создание приложения"""
     application = Application.builder().token(BOT_TOKEN).build()
@@ -250,33 +255,33 @@ def setup_application():
     # Добавляем обработчики
     application.add_handler(conv_handler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_restart))
+    application.add_handler(CommandHandler('health', health_check))
     application.add_error_handler(error_handler)
 
     return application
 
 
-async def set_webhook(application):
-    """Установка вебхука"""
-    webhook_url = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
-    await application.bot.set_webhook(webhook_url)
-    logger.info(f"Webhook установлен: {webhook_url}")
+def main():
+    """Основная функция"""
+    # Проверяем, запущен ли в Amvera (есть ли переменная окружения)
+    is_amvera = os.getenv('AMVERA_APP_NAME') is not None
 
-
-async def main():
-    """Основная функция с вебхуком"""
     application = setup_application()
 
-    # Устанавливаем вебхук
-    await set_webhook(application)
-
-    # Запускаем приложение
-    logger.info("Бот запущен в режиме вебхука")
-    await application.start()
-
-    # Ждем завершения
-    await asyncio.Event().wait()
+    if is_amvera:
+        # Запуск в Amvera с вебхуками
+        logger.info("Запуск в режиме вебхука для Amvera")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=WEBHOOK_PORT,
+            webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+            secret_token='WEBHOOK_SECRET_TOKEN'
+        )
+    else:
+        # Локальная разработка с polling
+        logger.info("Запуск в режиме polling для локальной разработки")
+        application.run_polling()
 
 
 if __name__ == '__main__':
-    # Для запуска на Amvera с вебхуками
-    asyncio.run(main())
+    main()
